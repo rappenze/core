@@ -316,6 +316,10 @@ class FibaroController:
         """Return list of scenes."""
         return self._scenes
 
+    def read_devices(self) -> list[DeviceModel]:
+        """Return list of all fibaro devices."""
+        return list(self._device_map.values())
+
     def _read_devices(self) -> None:
         """Read and process the device list."""
         devices = self._client.read_devices()
@@ -324,6 +328,7 @@ class FibaroController:
         last_endpoint = None
         for device in devices:
             try:
+                self._device_map[device.fibaro_id] = device
                 device.fibaro_controller = self
                 if device.room_id == 0:
                     room_name = "Unknown"
@@ -342,7 +347,6 @@ class FibaroController:
                     continue
                 device.unique_id_str = f"{slugify(self.hub_serial)}.{device.fibaro_id}"
                 self._create_device_info(device, devices)
-                self._device_map[device.fibaro_id] = device
                 _LOGGER.debug(
                     "%s (%s, %s) -> %s %s",
                     device.ha_id,
