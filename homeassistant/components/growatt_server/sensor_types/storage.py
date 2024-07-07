@@ -1,4 +1,5 @@
 """Growatt Sensor definitions for the Storage type."""
+
 from __future__ import annotations
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
@@ -72,6 +73,14 @@ STORAGE_SENSOR_TYPES: tuple[GrowattSensorEntityDescription, ...] = (
         api_key="ppv",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
+    ),
+    GrowattSensorEntityDescription(
+        key="storage_solar_production_2",
+        translation_key="storage_solar_production_2",
+        api_key="ppv2",
+        native_unit_of_measurement=UnitOfPower.WATT,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     GrowattSensorEntityDescription(
         key="storage_battery_percentage",

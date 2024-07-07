@@ -1,6 +1,6 @@
 """The binary_sensor tests for the august platform."""
+
 import datetime
-import time
 from unittest.mock import Mock, patch
 
 from yalexs.pubnub_async import AugustPubNub
@@ -24,13 +24,10 @@ from .mocks import (
     _mock_doorbell_from_fixture,
     _mock_doorsense_enabled_august_lock_detail,
     _mock_lock_from_fixture,
+    _timetoken,
 )
 
 from tests.common import async_fire_time_changed
-
-
-def _timetoken():
-    return str(time.time_ns())[:-2]
 
 
 async def test_doorsense(hass: HomeAssistant) -> None:
@@ -152,7 +149,7 @@ async def test_create_doorbell_with_motion(hass: HomeAssistant) -> None:
     new_time = dt_util.utcnow() + datetime.timedelta(seconds=40)
     native_time = datetime.datetime.now() + datetime.timedelta(seconds=40)
     with patch(
-        "homeassistant.components.august.binary_sensor._native_datetime",
+        "homeassistant.components.august.util._native_datetime",
         return_value=native_time,
     ):
         async_fire_time_changed(hass, new_time)
@@ -251,7 +248,7 @@ async def test_doorbell_update_via_pubnub(hass: HomeAssistant) -> None:
     new_time = dt_util.utcnow() + datetime.timedelta(seconds=40)
     native_time = datetime.datetime.now() + datetime.timedelta(seconds=40)
     with patch(
-        "homeassistant.components.august.binary_sensor._native_datetime",
+        "homeassistant.components.august.util._native_datetime",
         return_value=native_time,
     ):
         async_fire_time_changed(hass, new_time)
@@ -281,7 +278,7 @@ async def test_doorbell_update_via_pubnub(hass: HomeAssistant) -> None:
     new_time = dt_util.utcnow() + datetime.timedelta(seconds=40)
     native_time = datetime.datetime.now() + datetime.timedelta(seconds=40)
     with patch(
-        "homeassistant.components.august.binary_sensor._native_datetime",
+        "homeassistant.components.august.util._native_datetime",
         return_value=native_time,
     ):
         async_fire_time_changed(hass, new_time)
@@ -293,12 +290,12 @@ async def test_doorbell_update_via_pubnub(hass: HomeAssistant) -> None:
     assert binary_sensor_k98gidt45gul_name_ding.state == STATE_OFF
 
 
-async def test_doorbell_device_registry(hass: HomeAssistant) -> None:
+async def test_doorbell_device_registry(
+    hass: HomeAssistant, device_registry: dr.DeviceRegistry
+) -> None:
     """Test creation of a lock with doorsense and bridge ands up in the registry."""
     doorbell_one = await _mock_doorbell_from_fixture(hass, "get_doorbell.offline.json")
     await _create_august_with_devices(hass, [doorbell_one])
-
-    device_registry = dr.async_get(hass)
 
     reg_device = device_registry.async_get_device(identifiers={("august", "tmt100")})
     assert reg_device.model == "hydra1"

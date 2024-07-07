@@ -1,4 +1,5 @@
 """Support for viewing the camera feed from a DoorBird video doorbell."""
+
 from __future__ import annotations
 
 import asyncio
@@ -8,15 +9,13 @@ import logging
 import aiohttp
 
 from homeassistant.components.camera import Camera, CameraEntityFeature
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 import homeassistant.util.dt as dt_util
 
-from .const import DOMAIN
 from .entity import DoorBirdEntity
-from .models import DoorBirdData
+from .models import DoorBirdConfigEntry, DoorBirdData
 
 _LAST_VISITOR_INTERVAL = datetime.timedelta(minutes=2)
 _LAST_MOTION_INTERVAL = datetime.timedelta(seconds=30)
@@ -27,12 +26,11 @@ _TIMEOUT = 15  # seconds
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    config_entry: ConfigEntry,
+    config_entry: DoorBirdConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the DoorBird camera platform."""
-    config_entry_id = config_entry.entry_id
-    door_bird_data: DoorBirdData = hass.data[DOMAIN][config_entry_id]
+    door_bird_data = config_entry.runtime_data
     device = door_bird_data.door_station.device
 
     async_add_entities(
@@ -106,9 +104,7 @@ class DoorBirdCamera(DoorBirdEntity, Camera):
                 response = await websession.get(self._url)
 
             self._last_image = await response.read()
-            self._last_update = now
-            return self._last_image
-        except asyncio.TimeoutError:
+        except TimeoutError:
             _LOGGER.error("DoorBird %s: Camera image timed out", self.name)
             return self._last_image
         except aiohttp.ClientError as error:
@@ -116,6 +112,9 @@ class DoorBirdCamera(DoorBirdEntity, Camera):
                 "DoorBird %s: Error getting camera image: %s", self.name, error
             )
             return self._last_image
+
+        self._last_update = now
+        return self._last_image
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to events."""

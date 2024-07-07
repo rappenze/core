@@ -55,6 +55,9 @@
       "is_on": "[%key:common::device_automation::condition_type::is_on%]",
       "is_off": "[%key:common::device_automation::condition_type::is_off%]"
     },
+    "extra_fields": {
+      "for": "[%key:common::device_automation::extra_fields::for%]"
+    },
     "trigger_type": {
       "bat_low": "{entity_name} battery low",
       "not_bat_low": "{entity_name} battery normal",
@@ -247,8 +250,8 @@
     "presence": {
       "name": "Presence",
       "state": {
-        "off": "[%key:component::device_tracker::entity_component::_::state::not_home%]",
-        "on": "[%key:component::device_tracker::entity_component::_::state::home%]"
+        "off": "[%key:common::state::not_home%]",
+        "on": "[%key:common::state::home%]"
       }
     },
     "problem": {

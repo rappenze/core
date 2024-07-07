@@ -6,51 +6,41 @@ from dataclasses import dataclass
 from doorbirdpy import DoorBird
 
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN
 from .entity import DoorBirdEntity
-from .models import DoorBirdData
+from .models import DoorBirdConfigEntry, DoorBirdData
 
 IR_RELAY = "__ir_light__"
 
 
-@dataclass
-class DoorbirdButtonEntityDescriptionMixin:
-    """Mixin to describe a Doorbird Button entity."""
+@dataclass(frozen=True, kw_only=True)
+class DoorbirdButtonEntityDescription(ButtonEntityDescription):
+    """Class to describe a Doorbird Button entity."""
 
     press_action: Callable[[DoorBird, str], None]
 
 
-@dataclass
-class DoorbirdButtonEntityDescription(
-    ButtonEntityDescription, DoorbirdButtonEntityDescriptionMixin
-):
-    """Class to describe a Doorbird Button entity."""
-
-
 RELAY_ENTITY_DESCRIPTION = DoorbirdButtonEntityDescription(
     key="relay",
+    translation_key="relay",
     press_action=lambda device, relay: device.energize_relay(relay),
-    icon="mdi:dip-switch",
 )
 IR_ENTITY_DESCRIPTION = DoorbirdButtonEntityDescription(
     key="ir",
+    translation_key="ir",
     press_action=lambda device, _: device.turn_light_on(),
-    icon="mdi:lightbulb",
 )
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    config_entry: ConfigEntry,
+    config_entry: DoorBirdConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the DoorBird button platform."""
-    config_entry_id = config_entry.entry_id
-    door_bird_data: DoorBirdData = hass.data[DOMAIN][config_entry_id]
+    door_bird_data = config_entry.runtime_data
     relays = door_bird_data.door_station_info["RELAYS"]
 
     entities = [

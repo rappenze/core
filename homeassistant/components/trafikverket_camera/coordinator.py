@@ -1,10 +1,12 @@
 """DataUpdateCoordinator for the Trafikverket Camera integration."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import timedelta
 from io import BytesIO
 import logging
+from typing import TYPE_CHECKING
 
 from pytrafikverket.exceptions import (
     InvalidAuthentication,
@@ -12,16 +14,19 @@ from pytrafikverket.exceptions import (
     NoCameraFound,
     UnknownError,
 )
-from pytrafikverket.trafikverket_camera import CameraInfo, TrafikverketCamera
+from pytrafikverket.models import CameraInfoModel
+from pytrafikverket.trafikverket_camera import TrafikverketCamera
 
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_API_KEY
+from homeassistant.const import CONF_API_KEY, CONF_ID
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import CONF_LOCATION, DOMAIN
+from .const import DOMAIN
+
+if TYPE_CHECKING:
+    from . import TVCameraConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 TIME_BETWEEN_UPDATES = timedelta(minutes=5)
@@ -31,14 +36,16 @@ TIME_BETWEEN_UPDATES = timedelta(minutes=5)
 class CameraData:
     """Dataclass for Camera data."""
 
-    data: CameraInfo
+    data: CameraInfoModel
     image: bytes | None
 
 
 class TVDataUpdateCoordinator(DataUpdateCoordinator[CameraData]):
     """A Trafikverket Data Update Coordinator."""
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+    config_entry: TVCameraConfigEntry
+
+    def __init__(self, hass: HomeAssistant) -> None:
         """Initialize the Trafikverket coordinator."""
         super().__init__(
             hass,
@@ -47,15 +54,17 @@ class TVDataUpdateCoordinator(DataUpdateCoordinator[CameraData]):
             update_interval=TIME_BETWEEN_UPDATES,
         )
         self.session = async_get_clientsession(hass)
-        self._camera_api = TrafikverketCamera(self.session, entry.data[CONF_API_KEY])
-        self._location = entry.data[CONF_LOCATION]
+        self._camera_api = TrafikverketCamera(
+            self.session, self.config_entry.data[CONF_API_KEY]
+        )
+        self._id = self.config_entry.data[CONF_ID]
 
     async def _async_update_data(self) -> CameraData:
         """Fetch data from Trafikverket."""
-        camera_data: CameraInfo
+        camera_data: CameraInfoModel
         image: bytes | None = None
         try:
-            camera_data = await self._camera_api.async_get_camera(self._location)
+            camera_data = await self._camera_api.async_get_camera(self._id)
         except (NoCameraFound, MultipleCamerasFound, UnknownError) as error:
             raise UpdateFailed from error
         except InvalidAuthentication as error:

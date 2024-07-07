@@ -1,29 +1,16 @@
 """deCONZ button platform tests."""
-from unittest.mock import patch
+
+from collections.abc import Callable
 
 import pytest
 
 from homeassistant.components.button import DOMAIN as BUTTON_DOMAIN, SERVICE_PRESS
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_ENTITY_ID, STATE_UNAVAILABLE, EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
-from .test_gateway import (
-    DECONZ_WEB_REQUEST,
-    mock_deconz_put_request,
-    setup_deconz_integration,
-)
-
 from tests.test_util.aiohttp import AiohttpClientMocker
-
-
-async def test_no_binary_sensors(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
-) -> None:
-    """Test that no sensors in deconz results in no sensor entities."""
-    await setup_deconz_integration(hass, aioclient_mock)
-    assert len(hass.states.async_all()) == 0
-
 
 TEST_DATA = [
     (  # Store scene button
@@ -99,17 +86,17 @@ TEST_DATA = [
 ]
 
 
-@pytest.mark.parametrize(("raw_data", "expected"), TEST_DATA)
+@pytest.mark.parametrize(("deconz_payload", "expected"), TEST_DATA)
 async def test_button(
-    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, raw_data, expected
+    hass: HomeAssistant,
+    entity_registry: er.EntityRegistry,
+    device_registry: dr.DeviceRegistry,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry_setup: ConfigEntry,
+    mock_put_request: Callable[[str, str], AiohttpClientMocker],
+    expected,
 ) -> None:
     """Test successful creation of button entities."""
-    ent_reg = er.async_get(hass)
-    dev_reg = dr.async_get(hass)
-
-    with patch.dict(DECONZ_WEB_REQUEST, raw_data):
-        config_entry = await setup_deconz_integration(hass, aioclient_mock)
-
     assert len(hass.states.async_all()) == expected["entity_count"]
 
     # Verify state data
@@ -119,20 +106,24 @@ async def test_button(
 
     # Verify entity registry data
 
-    ent_reg_entry = ent_reg.async_get(expected["entity_id"])
+    ent_reg_entry = entity_registry.async_get(expected["entity_id"])
     assert ent_reg_entry.entity_category is expected["entity_category"]
     assert ent_reg_entry.unique_id == expected["unique_id"]
 
     # Verify device registry data
 
     assert (
-        len(dr.async_entries_for_config_entry(dev_reg, config_entry.entry_id))
+        len(
+            dr.async_entries_for_config_entry(
+                device_registry, config_entry_setup.entry_id
+            )
+        )
         == expected["device_count"]
     )
 
     # Verify button press
 
-    mock_deconz_put_request(aioclient_mock, config_entry.data, expected["request"])
+    aioclient_mock = mock_put_request(expected["request"])
 
     await hass.services.async_call(
         BUTTON_DOMAIN,
@@ -144,11 +135,11 @@ async def test_button(
 
     # Unload entry
 
-    await hass.config_entries.async_unload(config_entry.entry_id)
+    await hass.config_entries.async_unload(config_entry_setup.entry_id)
     assert hass.states.get(expected["entity_id"]).state == STATE_UNAVAILABLE
 
     # Remove entry
 
-    await hass.config_entries.async_remove(config_entry.entry_id)
+    await hass.config_entries.async_remove(config_entry_setup.entry_id)
     await hass.async_block_till_done()
     assert len(hass.states.async_all()) == 0

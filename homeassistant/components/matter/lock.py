@@ -1,12 +1,16 @@
 """Matter lock."""
+
 from __future__ import annotations
 
-from enum import IntFlag
 from typing import Any
 
 from chip.clusters import Objects as clusters
 
-from homeassistant.components.lock import LockEntity, LockEntityDescription
+from homeassistant.components.lock import (
+    LockEntity,
+    LockEntityDescription,
+    LockEntityFeature,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_CODE, Platform
 from homeassistant.core import HomeAssistant, callback
@@ -16,6 +20,8 @@ from .const import LOGGER
 from .entity import MatterEntity
 from .helpers import get_matter
 from .models import MatterDiscoverySchema
+
+DoorLockFeature = clusters.DoorLock.Bitmaps.Feature
 
 
 async def async_setup_entry(
@@ -61,6 +67,14 @@ class MatterLock(MatterEntity, LockEntity):
 
         return bool(self.features & DoorLockFeature.kDoorPositionSensor)
 
+    @property
+    def supports_unbolt(self) -> bool:
+        """Return True if the lock supports unbolt."""
+        if self.features is None:
+            return False
+
+        return bool(self.features & DoorLockFeature.kUnbolt)
+
     async def send_device_command(
         self,
         command: clusters.ClusterCommand,
@@ -76,10 +90,10 @@ class MatterLock(MatterEntity, LockEntity):
 
     async def async_lock(self, **kwargs: Any) -> None:
         """Lock the lock with pin if needed."""
-        code: str = kwargs.get(
-            ATTR_CODE,
-            self._lock_option_default_code,
-        )
+        # optimistically signal locking to state machine
+        self._attr_is_locking = True
+        self.async_write_ha_state()
+        code: str | None = kwargs.get(ATTR_CODE)
         code_bytes = code.encode() if code else None
         await self.send_device_command(
             command=clusters.DoorLock.Commands.LockDoor(code_bytes)
@@ -87,10 +101,29 @@ class MatterLock(MatterEntity, LockEntity):
 
     async def async_unlock(self, **kwargs: Any) -> None:
         """Unlock the lock with pin if needed."""
-        code: str = kwargs.get(
-            ATTR_CODE,
-            self._lock_option_default_code,
-        )
+        # optimistically signal unlocking to state machine
+        self._attr_is_unlocking = True
+        self.async_write_ha_state()
+        code: str | None = kwargs.get(ATTR_CODE)
+        code_bytes = code.encode() if code else None
+        if self.supports_unbolt:
+            # if the lock reports it has separate unbolt support,
+            # the unlock command should unbolt only on the unlock command
+            # and unlatch on the HA 'open' command.
+            await self.send_device_command(
+                command=clusters.DoorLock.Commands.UnboltDoor(code_bytes)
+            )
+        else:
+            await self.send_device_command(
+                command=clusters.DoorLock.Commands.UnlockDoor(code_bytes)
+            )
+
+    async def async_open(self, **kwargs: Any) -> None:
+        """Open the door latch."""
+        # optimistically signal unlocking to state machine
+        self._attr_is_unlocking = True
+        self.async_write_ha_state()
+        code: str | None = kwargs.get(ATTR_CODE)
         code_bytes = code.encode() if code else None
         await self.send_device_command(
             command=clusters.DoorLock.Commands.UnlockDoor(code_bytes)
@@ -104,31 +137,30 @@ class MatterLock(MatterEntity, LockEntity):
             self.features = int(
                 self.get_matter_attribute_value(clusters.DoorLock.Attributes.FeatureMap)
             )
+            if self.supports_unbolt:
+                self._attr_supported_features = LockEntityFeature.OPEN
 
         lock_state = self.get_matter_attribute_value(
             clusters.DoorLock.Attributes.LockState
         )
 
+        # always reset the optimisically (un)locking state on state update
+        self._attr_is_locking = False
+        self._attr_is_unlocking = False
+
         LOGGER.debug("Lock state: %s for %s", lock_state, self.entity_id)
 
         if lock_state is clusters.DoorLock.Enums.DlLockState.kLocked:
             self._attr_is_locked = True
-            self._attr_is_locking = False
-            self._attr_is_unlocking = False
-        elif lock_state is clusters.DoorLock.Enums.DlLockState.kUnlocked:
+        elif lock_state in (
+            clusters.DoorLock.Enums.DlLockState.kUnlocked,
+            clusters.DoorLock.Enums.DlLockState.kUnlatched,
+            clusters.DoorLock.Enums.DlLockState.kNotFullyLocked,
+        ):
             self._attr_is_locked = False
-            self._attr_is_locking = False
-            self._attr_is_unlocking = False
-        elif lock_state is clusters.DoorLock.Enums.DlLockState.kNotFullyLocked:
-            if self.is_locked is True:
-                self._attr_is_unlocking = True
-            elif self.is_locked is False:
-                self._attr_is_locking = True
         else:
             # According to the matter docs a null state can happen during device startup.
             self._attr_is_locked = None
-            self._attr_is_locking = None
-            self._attr_is_unlocking = None
 
         if self.supports_door_position_sensor:
             door_state = self.get_matter_attribute_value(
@@ -142,32 +174,17 @@ class MatterLock(MatterEntity, LockEntity):
             self._attr_is_jammed = (
                 door_state is clusters.DoorLock.Enums.DoorStateEnum.kDoorJammed
             )
-
-
-class DoorLockFeature(IntFlag):
-    """Temp enum that represents the features of a door lock.
-
-    Should be replaced by the library provided one once that is released.
-    """
-
-    kPinCredential = 0x1  # noqa: N815
-    kRfidCredential = 0x2  # noqa: N815
-    kFingerCredentials = 0x4  # noqa: N815
-    kLogging = 0x8  # noqa: N815
-    kWeekDayAccessSchedules = 0x10  # noqa: N815
-    kDoorPositionSensor = 0x20  # noqa: N815
-    kFaceCredentials = 0x40  # noqa: N815
-    kCredentialsOverTheAirAccess = 0x80  # noqa: N815
-    kUser = 0x100  # noqa: N815
-    kNotification = 0x200  # noqa: N815
-    kYearDayAccessSchedules = 0x400  # noqa: N815
-    kHolidaySchedules = 0x800  # noqa: N815
+            self._attr_is_open = (
+                door_state is clusters.DoorLock.Enums.DoorStateEnum.kDoorOpen
+            )
 
 
 DISCOVERY_SCHEMAS = [
     MatterDiscoverySchema(
         platform=Platform.LOCK,
-        entity_description=LockEntityDescription(key="MatterLock", name=None),
+        entity_description=LockEntityDescription(
+            key="MatterLock", translation_key="lock"
+        ),
         entity_class=MatterLock,
         required_attributes=(clusters.DoorLock.Attributes.LockState,),
         optional_attributes=(clusters.DoorLock.Attributes.DoorState,),
