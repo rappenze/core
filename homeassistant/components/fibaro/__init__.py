@@ -27,6 +27,8 @@ from homeassistant.helpers.device_registry import DeviceEntry, DeviceInfo
 from homeassistant.util import slugify
 
 from .const import CONF_IMPORT_PLUGINS, DOMAIN
+from .fibaro_data import FibaroData
+from .fibaro_thing import FibaroThing
 
 type FibaroConfigEntry = ConfigEntry[FibaroController]
 
@@ -100,6 +102,7 @@ class FibaroController:
         self.hub_api_url: str = config[CONF_URL]
         # Device infos by fibaro device id
         self._device_infos: dict[int, DeviceInfo] = {}
+        self._data: FibaroData
 
     def connect(self) -> None:
         """Start the communication with the Fibaro controller."""
@@ -107,15 +110,13 @@ class FibaroController:
         # Return value doesn't need to be checked,
         # it is only relevant when connecting without credentials
         self._client.connect()
-        info = self._client.read_info()
-        self.hub_serial = info.serial_number
-        self.hub_name = info.hc_name
-        self.hub_model = info.platform
-        self.hub_software_version = info.current_version
+        self._data = FibaroData(self._client, self._import_plugins)
+        self.hub_serial = self._data.get_hub_information().serial_number
+        self.hub_name = self._data.get_hub_information().hc_name
+        self.hub_model = self._data.get_hub_information().platform
+        self.hub_software_version = self._data.get_hub_information().current_version
 
-        self._room_map = {room.fibaro_id: room for room in self._client.read_rooms()}
         self._read_devices()
-        self._scenes = self._client.read_scenes()
 
     def connect_with_error_handling(self) -> None:
         """Translate connect errors to easily differentiate auth and connect failures.
@@ -142,20 +143,17 @@ class FibaroController:
 
     def _on_state_change(self, state: Any) -> None:
         """Handle change report received from the HomeCenter."""
+        resolver = FibaroStateResolver(state)
+
         callback_set = set()
-        for change in state.get("changes", []):
+
+        for state_change in resolver.get_state_updates():
             try:
-                dev_id = change.pop("id")
+                dev_id = state_change.fibaro_id
                 if dev_id not in self._device_map:
                     continue
                 device = self._device_map[dev_id]
-                for property_name, value in change.items():
-                    if property_name == "log":
-                        if value and value != "transfer OK":
-                            _LOGGER.debug("LOG %s: %s", device.friendly_name, value)
-                        continue
-                    if property_name == "logTemp":
-                        continue
+                for property_name, value in state_change.property_changes:
                     if property_name in device.properties:
                         device.properties[property_name] = value
                         _LOGGER.debug(
@@ -171,7 +169,6 @@ class FibaroController:
             for callback in self._callbacks[item]:
                 callback()
 
-        resolver = FibaroStateResolver(state)
         for event in resolver.get_events():
             # event does not always have a fibaro id, therefore it is
             # essential that we first check for relevant event type
@@ -302,13 +299,16 @@ class FibaroController:
 
     def get_room_name(self, room_id: int) -> str | None:
         """Get the room name by room id."""
-        assert self._room_map
-        room = self._room_map.get(room_id)
-        return room.name if room else None
+        assert self._data
+        return self._data.get_room_name(room_id)
 
     def read_scenes(self) -> list[SceneModel]:
         """Return list of scenes."""
         return self._scenes
+
+    def read_things(self) -> list[FibaroThing]:
+        """Return physical devices."""
+        return self._data.get_fibaro_things()
 
     def _read_devices(self) -> None:
         """Read and process the device list."""
@@ -319,11 +319,9 @@ class FibaroController:
         for device in devices:
             try:
                 device.fibaro_controller = self
-                if device.room_id == 0:
+                room_name = self.get_room_name(device.room_id)
+                if not room_name:
                     room_name = "Unknown"
-                else:
-                    room_name = self._room_map[device.room_id].name
-                device.room_name = room_name
                 device.friendly_name = f"{room_name} {device.name}"
                 device.ha_id = (
                     f"{slugify(room_name)}_{slugify(device.name)}_{device.fibaro_id}"

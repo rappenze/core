@@ -92,6 +92,14 @@ ADDITIONAL_SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
     ),
 )
 
+battery = SensorEntityDescription(
+    key="batteryLevel",
+    name="Battery",
+    native_unit_of_measurement=PERCENTAGE,
+    device_class=SensorDeviceClass.BATTERY,
+    state_class=SensorStateClass.MEASUREMENT,
+)
+
 FIBARO_TO_HASS_UNIT: dict[str, str] = {
     "lux": LIGHT_LUX,
     "C": UnitOfTemperature.CELSIUS,
@@ -132,6 +140,10 @@ async def async_setup_entry(
         for entity_description in ADDITIONAL_SENSOR_TYPES
         if entity_description.key in device.properties
     )
+
+    for thing in controller.read_things():
+        if thing.get_master().has_battery_level:
+            entities.extend([FibaroAdditionalSensor(thing.get_master(), battery)])
 
     async_add_entities(entities, True)
 
