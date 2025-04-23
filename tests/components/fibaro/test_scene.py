@@ -40,12 +40,9 @@ async def test_entity_attributes_without_room(
     mock_fibaro_client: Mock,
     mock_config_entry: MockConfigEntry,
     mock_scene: Mock,
-    mock_room: Mock,
 ) -> None:
     """Test that the attributes of the entity are correct."""
     # Arrange
-    mock_room.name = None
-    mock_fibaro_client.read_rooms.return_value = [mock_room]
     mock_fibaro_client.read_scenes.return_value = [mock_scene]
     # Act
     await init_integration(hass, mock_config_entry)

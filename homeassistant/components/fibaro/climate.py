@@ -21,7 +21,7 @@ from homeassistant.const import ATTR_TEMPERATURE, Platform, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from . import FibaroConfigEntry
+from . import FibaroConfigEntry, FibaroController
 from .entity import FibaroEntity
 
 PRESET_RESUME = "resume"
@@ -116,7 +116,7 @@ async def async_setup_entry(
     controller = entry.runtime_data
     async_add_entities(
         [
-            FibaroThermostat(device)
+            FibaroThermostat(device, controller)
             for device in controller.fibaro_devices[Platform.CLIMATE]
         ],
         True,
@@ -126,9 +126,11 @@ async def async_setup_entry(
 class FibaroThermostat(FibaroEntity, ClimateEntity):
     """Representation of a Fibaro Thermostat."""
 
-    def __init__(self, fibaro_device: DeviceModel) -> None:
+    def __init__(
+        self, fibaro_device: DeviceModel, controller: FibaroController
+    ) -> None:
         """Initialize the Fibaro device."""
-        super().__init__(fibaro_device)
+        super().__init__(fibaro_device, controller)
         self._temp_sensor_device: DeviceModel | None = None
         self._target_temp_device: DeviceModel | None = None
         self._op_mode_device: DeviceModel | None = None
@@ -136,7 +138,7 @@ class FibaroThermostat(FibaroEntity, ClimateEntity):
         self.entity_id = ENTITY_ID_FORMAT.format(self.ha_id)
 
         siblings = self.controller.get_siblings(fibaro_device)
-        _LOGGER.debug("%s siblings: %s", fibaro_device.ha_id, siblings)
+        _LOGGER.debug("%s siblings: %s", self.ha_id, siblings)
         tempunit = "C"
         for device in siblings:
             # Detecting temperature device, one strong and one weak way of

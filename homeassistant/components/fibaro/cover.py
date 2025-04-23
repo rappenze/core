@@ -17,7 +17,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from . import FibaroConfigEntry
+from . import FibaroConfigEntry, FibaroController
 from .entity import FibaroEntity
 
 
@@ -29,7 +29,10 @@ async def async_setup_entry(
     """Set up the Fibaro covers."""
     controller = entry.runtime_data
     async_add_entities(
-        [FibaroCover(device) for device in controller.fibaro_devices[Platform.COVER]],
+        [
+            FibaroCover(device, controller)
+            for device in controller.fibaro_devices[Platform.COVER]
+        ],
         True,
     )
 
@@ -37,9 +40,11 @@ async def async_setup_entry(
 class FibaroCover(FibaroEntity, CoverEntity):
     """Representation a Fibaro Cover."""
 
-    def __init__(self, fibaro_device: DeviceModel) -> None:
+    def __init__(
+        self, fibaro_device: DeviceModel, controller: FibaroController
+    ) -> None:
         """Initialize the Vera device."""
-        super().__init__(fibaro_device)
+        super().__init__(fibaro_device, controller)
         self.entity_id = ENTITY_ID_FORMAT.format(self.ha_id)
 
         if self._is_open_close_only():

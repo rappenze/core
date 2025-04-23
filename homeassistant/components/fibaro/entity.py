@@ -10,6 +10,7 @@ from pyfibaro.fibaro_device import DeviceModel
 
 from homeassistant.const import ATTR_ARMED, ATTR_BATTERY_LEVEL
 from homeassistant.helpers.entity import Entity
+from homeassistant.util import slugify
 
 from . import FibaroController
 
@@ -21,15 +22,24 @@ class FibaroEntity(Entity):
 
     _attr_should_poll = False
 
-    def __init__(self, fibaro_device: DeviceModel) -> None:
+    def __init__(
+        self, fibaro_device: DeviceModel, controller: FibaroController
+    ) -> None:
         """Initialize the device."""
         self.fibaro_device = fibaro_device
-        self.controller: FibaroController = fibaro_device.fibaro_controller
-        self.ha_id = fibaro_device.ha_id
-        self._attr_name = fibaro_device.friendly_name
-        self._attr_unique_id = fibaro_device.unique_id_str
+        self.controller = controller
 
-        self._attr_device_info = self.controller.get_device_info(fibaro_device)
+        room_name = controller.get_room_name(fibaro_device.room_id)
+        self.ha_id = f"{slugify(room_name)}_{slugify(fibaro_device.name)}_{fibaro_device.fibaro_id}"
+        self._friendly_name = f"{room_name} {fibaro_device.name}"
+        self._unique_id_str = (
+            f"{slugify(controller.hub_serial)}.{fibaro_device.fibaro_id}"
+        )
+
+        self._attr_name = self._friendly_name
+        self._attr_unique_id = self._unique_id_str
+
+        self._attr_device_info = controller.get_device_info(fibaro_device)
         # propagate hidden attribute set in fibaro home center to HA
         if not fibaro_device.visible:
             self._attr_entity_registry_visible_default = False
