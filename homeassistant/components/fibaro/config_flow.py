@@ -6,27 +6,24 @@ from collections.abc import Mapping
 import logging
 from typing import Any
 
-from pyfibaro.fibaro_client import FibaroAuthenticationFailed, FibaroConnectFailed
+from pyfibaro.fibaro_client import (
+    FibaroAuthenticationFailed,
+    FibaroClient,
+    FibaroConnectFailed,
+)
+from requests.exceptions import HTTPError
 from slugify import slugify
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_NAME, CONF_PASSWORD, CONF_URL, CONF_USERNAME
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
 from . import connect_fibaro_client
 from .const import CONF_IMPORT_PLUGINS, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
-
-STEP_USER_DATA_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_URL): str,
-        vol.Required(CONF_USERNAME): str,
-        vol.Required(CONF_PASSWORD): str,
-        vol.Optional(CONF_IMPORT_PLUGINS, default=False): bool,
-    }
-)
 
 
 async def _validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
@@ -41,6 +38,14 @@ async def _validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str
         info.serial_number,
         info.hc_name,
     )
+    return {
+        "serial_number": slugify(info.serial_number),
+        "name": info.hc_name,
+    }
+
+
+def _get_info(url: str) -> dict[str, Any]:
+    info = FibaroClient(url).read_info()
     return {
         "serial_number": slugify(info.serial_number),
         "name": info.hc_name,
@@ -64,6 +69,10 @@ class FibaroConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
+    def __init__(self) -> None:
+        """Initialize the Daikin config flow."""
+        self.url: str | None = None
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
@@ -84,7 +93,16 @@ class FibaroConfigFlow(ConfigFlow, domain=DOMAIN):
                 return self.async_create_entry(title=info["name"], data=user_input)
 
         return self.async_show_form(
-            step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
+            step_id="user",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_URL, default=self.url): str,
+                    vol.Required(CONF_USERNAME): str,
+                    vol.Required(CONF_PASSWORD): str,
+                    vol.Optional(CONF_IMPORT_PLUGINS, default=False): bool,
+                }
+            ),
+            errors=errors,
         )
 
     async def async_step_reauth(
@@ -123,3 +141,28 @@ class FibaroConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_NAME: reauth_entry.title,
             },
         )
+
+    async def async_step_zeroconf(
+        self, discovery_info: ZeroconfServiceInfo
+    ) -> ConfigFlowResult:
+        """Handle zeroconf discovery for fibaro hub."""
+        serial_number = slugify(discovery_info.name.split(".", 1)[0])
+        url = _normalize_url(f"http://{discovery_info.ip_address}")
+
+        await self.async_set_unique_id(serial_number)
+        self._abort_if_unique_id_configured(updates={CONF_URL: url})
+
+        # Double check that we are discovering a Fibaro Hub by reading the serial number
+        # from the API again so we do not rely only on the discovered name
+        try:
+            info = await self.hass.async_add_executor_job(_get_info, url)
+            if info["serial_number"] == serial_number:
+                self.url = url
+                self.context.update({"title_placeholders": {CONF_NAME: info["name"]}})
+                return await self.async_step_user()
+        except HTTPError:
+            _LOGGER.debug(
+                "Zeroconf for fibaro detected another device by name %s", serial_number
+            )
+
+        return self.async_abort(reason="no_fibaro_hub")

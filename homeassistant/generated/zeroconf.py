@@ -868,6 +868,30 @@ ZEROCONF = {
     ],
     "_ssh._tcp.local.": [
         {
+            "domain": "fibaro",
+            "name": "hc3-*",
+        },
+        {
+            "domain": "fibaro",
+            "name": "hc3l-*",
+        },
+        {
+            "domain": "fibaro",
+            "name": "hc2-*",
+        },
+        {
+            "domain": "fibaro",
+            "name": "hcl-*",
+        },
+        {
+            "domain": "fibaro",
+            "name": "zb-*",
+        },
+        {
+            "domain": "fibaro",
+            "name": "yh-*",
+        },
+        {
             "domain": "smappee",
             "name": "smappee1*",
         },

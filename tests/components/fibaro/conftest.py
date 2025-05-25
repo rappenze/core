@@ -303,6 +303,26 @@ def mock_fibaro_client() -> Generator[Mock]:
         yield client
 
 
+@pytest.fixture
+def mock_fibaro_client_config_flow() -> Generator[Mock]:
+    """Return a mocked FibaroClient."""
+    info_mock = Mock()
+    info_mock.serial_number = TEST_SERIALNUMBER
+    info_mock.hc_name = TEST_NAME
+    info_mock.current_version = TEST_VERSION
+    info_mock.platform = TEST_MODEL
+    info_mock.manufacturer_name = "Fibaro"
+    info_mock.model_name = "Home Center 2"
+    info_mock.mac_address = "00:22:4d:b7:13:24"
+
+    with patch(
+        "homeassistant.components.fibaro.config_flow.FibaroClient", autospec=True
+    ) as fibaro_client_mock:
+        client = fibaro_client_mock.return_value
+        client.read_info.return_value = info_mock
+        yield client
+
+
 async def init_integration(
     hass: HomeAssistant, mock_config_entry: MockConfigEntry
 ) -> None:
