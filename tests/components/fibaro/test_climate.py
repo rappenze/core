@@ -280,3 +280,48 @@ async def test_set_target_temperature(
 
         # Assert
         mock_thermostat_with_operating_mode.execute_action.assert_called_once()
+
+
+async def test_fgt001_setup(
+    hass: HomeAssistant,
+    entity_registry: er.EntityRegistry,
+    mock_fibaro_client: Mock,
+    mock_config_entry: MockConfigEntry,
+    mock_fgt001: Mock,
+    mock_fgt001_endpoint1: Mock,
+    mock_fgt001_endpoint2: Mock,
+    mock_fgt001_parent: Mock,
+    mock_room: Mock,
+) -> None:
+    """Test that the climate creates an entity."""
+
+    # Arrange
+    mock_fibaro_client.read_rooms.return_value = [mock_room]
+    mock_fibaro_client.read_devices.return_value = [
+        mock_fgt001,
+        mock_fgt001_endpoint1,
+        mock_fgt001_endpoint2,
+        mock_fgt001_parent,
+    ]
+
+    with patch("homeassistant.components.fibaro.PLATFORMS", [Platform.CLIMATE]):
+        # Act
+        await init_integration(hass, mock_config_entry)
+        # Assert
+        entry = entity_registry.async_get("climate.room_1_test_climate_7")
+        assert entry
+        assert entry.unique_id == "hc2_111111.7"
+        assert entry.original_name == "Room 1 Test climate"
+        assert entry.supported_features == (
+            ClimateEntityFeature.TARGET_TEMPERATURE
+            | ClimateEntityFeature.TURN_ON
+            | ClimateEntityFeature.TURN_OFF
+            | ClimateEntityFeature.PRESET_MODE
+        )
+        state = hass.states.get("climate.room_1_test_climate_7")
+        assert state
+        assert state.state == HVACMode.AUTO
+        assert state.attributes["preset_mode"] == "ManufacturerSpecific"
+
+        state = hass.states.get("climate.room_1_test_climate_6")
+        assert state is None

@@ -1,7 +1,7 @@
 """Test helpers."""
 
 from collections.abc import Generator
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from pyfibaro.fibaro_device import SceneEvent
 import pytest
@@ -304,6 +304,136 @@ def mock_fan_device() -> Mock:
     climate.actions = {"setFanMode": 1}
     climate.supported_modes = [0, 1, 2]
     climate.mode = 1
+    return climate
+
+
+@pytest.fixture
+def mock_fgt001() -> Mock:
+    """Fixture for a thermostat."""
+    climate = Mock()
+    climate.fibaro_id = 6
+    climate.parent_fibaro_id = 5
+    climate.has_endpoint_id = True
+    climate.endpoint_id = 0
+    climate.name = "Test climate"
+    climate.room_id = 1
+    climate.dead = False
+    climate.visible = False
+    climate.enabled = True
+    climate.type = "com.fibaro.hvacSystem"
+    climate.base_type = "com.fibaro.device"
+    climate.properties = {
+        "manufacturer": "",
+        "thermostatMode": "",
+        "heatingThermostatSetpoint": 0.0,
+        "heatingThermostatSetpointFuture": 0.0,
+    }
+    climate.actions = {"setHeatingThermostatSetpoint": 1, "setThermostatMode": 1}
+    climate.supported_features = {}
+    climate.has_supported_thermostat_modes = True
+    climate.supported_thermostat_modes = ["Off", "Heat", "ManufacturerSpecific"]
+    climate.has_operating_mode = False
+    climate.has_thermostat_mode = True
+    climate.has_thermostat_operating_state = False
+    climate.thermostat_mode = ""
+    climate.has_heating_thermostat_setpoint = True
+    climate.heating_thermostat_setpoint = 0.0
+    climate.has_heating_thermostat_setpoint_future = True
+    climate.heating_thermostat_setpoint_future = 0.0
+    climate.has_interface = MagicMock(return_value=True)
+    value_mock = Mock()
+    value_mock.has_value = False
+    climate.value = value_mock
+    return climate
+
+
+@pytest.fixture
+def mock_fgt001_endpoint1() -> Mock:
+    """Fixture for a thermostat."""
+    climate = Mock()
+    climate.fibaro_id = 7
+    climate.parent_fibaro_id = 5
+    climate.has_endpoint_id = True
+    climate.endpoint_id = 1
+    climate.name = "Test climate"
+    climate.room_id = 1
+    climate.dead = False
+    climate.visible = True
+    climate.enabled = True
+    climate.type = "com.fibaro.FGT001"
+    climate.base_type = "com.fibaro.hvacSystem"
+    climate.properties = {
+        "manufacturer": "",
+        "heatingThermostatSetpoint": 24.0,
+        "heatingThermostatSetpointFuture": 24.0,
+    }
+    climate.actions = {"setHeatingThermostatSetpoint": 1, "setThermostatMode": 1}
+    climate.supported_features = {}
+    climate.has_supported_thermostat_modes = True
+    climate.supported_thermostat_modes = ["Off", "Heat", "ManufacturerSpecific"]
+    climate.has_operating_mode = False
+    climate.has_thermostat_mode = True
+    climate.thermostat_mode = "ManufacturerSpecific"
+    climate.has_heating_thermostat_setpoint = True
+    climate.heating_thermostat_setpoint = 24.0
+    climate.has_heating_thermostat_setpoint_future = True
+    climate.heating_thermostat_setpoint_future = 24.0
+    climate.unit = "C"
+    climate.has_unit = True
+    climate.has_interface = MagicMock(return_value=True)
+    value_mock = Mock()
+    value_mock.has_value = False
+    climate.value = value_mock
+    return climate
+
+
+@pytest.fixture
+def mock_fgt001_endpoint2() -> Mock:
+    """Fixture for a thermostat."""
+    climate = Mock()
+    climate.fibaro_id = 8
+    climate.parent_fibaro_id = 5
+    climate.has_endpoint_id = True
+    climate.endpoint_id = 2
+    climate.name = "Test climate"
+    climate.room_id = 1
+    climate.dead = False
+    climate.visible = True
+    climate.enabled = True
+    climate.type = "com.fibaro.temperatureSensor"
+    climate.base_type = "com.fibaro.multilevelSensor"
+    climate.properties = {"manufacturer": ""}
+    climate.actions = {}
+    climate.supported_features = {}
+    climate.has_supported_thermostat_modes = False
+    climate.has_operating_mode = False
+    climate.has_thermostat_mode = False
+    climate.has_heating_thermostat_setpoint = False
+    climate.has_heating_thermostat_setpoint_future = False
+    climate.unit = "C"
+    climate.has_unit = True
+    value_mock = Mock()
+    value_mock.has_value = True
+    value_mock.float_value.return_value = 20
+    climate.value = value_mock
+    return climate
+
+
+@pytest.fixture
+def mock_fgt001_parent() -> Mock:
+    """Fixture for a thermostat."""
+    climate = Mock()
+    climate.fibaro_id = 5
+    climate.parent_fibaro_id = 0
+    climate.name = "Test climate"
+    climate.room_id = 1
+    climate.dead = False
+    climate.visible = True
+    climate.enabled = True
+    climate.type = "com.fibaro.zwaveDevice"
+    climate.base_type = "com.fibaro.device"
+    climate.properties = {"manufacturer": ""}
+    climate.actions = []
     return climate
 
 

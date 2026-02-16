@@ -273,9 +273,11 @@ class FibaroController:
                     _LOGGER.debug("climate device: %s, no endPointId", device.ha_id)
                 # If a sibling of this device has been added, skip this one
                 # otherwise add the first visible device in the group
-                # which is a hack, but solves a problem with FGT having
+                # which is a hack, but solves a problem with FGT001 having
                 # hidden compatibility devices before the real device
-                if last_climate_parent != device.parent_fibaro_id or (
+                if device.has_interface("FGT001") and not device.visible:
+                    _LOGGER.debug("Ignore FGT001 thermostat first endpoint")
+                elif last_climate_parent != device.parent_fibaro_id or (
                     device.has_endpoint_id and last_endpoint != device.endpoint_id
                 ):
                     _LOGGER.debug("Handle separately")
