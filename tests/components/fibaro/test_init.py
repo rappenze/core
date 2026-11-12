@@ -88,6 +88,76 @@ async def test_load_integration_links_device_to_hub(
     assert light_device.via_device_id == hub_device.id
 
 
+async def test_load_integration_registers_child_device(
+    hass: HomeAssistant,
+    device_registry: dr.DeviceRegistry,
+    mock_fibaro_client: Mock,
+    mock_config_entry: MockConfigEntry,
+    mock_fgd212_light: Mock,
+    mock_room: Mock,
+    mock_switch: Mock,
+    mock_light: Mock,
+    mock_multilevel_base_type_light: Mock,
+) -> None:
+    """Test Fibaro child devices are grouped by parent and endpoint IDs."""
+    mock_switch.fibaro_id = 113
+    mock_switch.parent_fibaro_id = 1
+    mock_fgd212_light.has_endpoint_id = True
+    mock_fgd212_light.endpoint_id = 2
+    mock_light.fibaro_id = 117
+    mock_light.parent_fibaro_id = 113
+    mock_light.has_endpoint_id = True
+    mock_light.endpoint_id = 2
+    mock_multilevel_base_type_light.fibaro_id = 118
+    mock_multilevel_base_type_light.parent_fibaro_id = 113
+    mock_multilevel_base_type_light.has_endpoint_id = True
+    mock_multilevel_base_type_light.endpoint_id = 3
+
+    mock_fibaro_client.read_rooms.return_value = [mock_room]
+    mock_fibaro_client.read_devices.return_value = [
+        mock_switch,
+        mock_fgd212_light,
+        mock_light,
+        mock_multilevel_base_type_light,
+    ]
+
+    with patch("homeassistant.components.fibaro.PLATFORMS", [Platform.LIGHT]):
+        await init_integration(hass, mock_config_entry)
+
+    parent = device_registry.async_get_device_by_identifier(
+        (DOMAIN, "113"), mock_config_entry.entry_id
+    )
+    endpoint_2_child = device_registry.async_get_child_device_by_identifier(
+        (DOMAIN, "113_2"), mock_config_entry.entry_id
+    )
+    endpoint_3_child = device_registry.async_get_child_device_by_identifier(
+        (DOMAIN, "113_3"), mock_config_entry.entry_id
+    )
+
+    assert parent is not None
+    assert endpoint_2_child is not None
+    assert endpoint_3_child is not None
+    assert endpoint_2_child.id != endpoint_3_child.id
+    assert endpoint_2_child.parent_device_id == parent.id
+    assert endpoint_3_child.parent_device_id == parent.id
+    assert (
+        len(
+            [
+                child
+                for child in device_registry.child_devices
+                if child.parent_device_id == parent.id
+            ]
+        )
+        == 2
+    )
+    assert {(DOMAIN, "113_2")} in (
+        mock_config_entry.runtime_data.get_all_device_identifiers()
+    )
+    assert {(DOMAIN, "113_3")} in (
+        mock_config_entry.runtime_data.get_all_device_identifiers()
+    )
+
+
 @pytest.mark.parametrize(
     ("fibaro_id", "removable"),
     [

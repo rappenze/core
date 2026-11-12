@@ -29,41 +29,35 @@ from .entity import FibaroEntity
 # List of known sensors which represents a fibaro device
 MAIN_SENSOR_TYPES: dict[str, SensorEntityDescription] = {
     "com.fibaro.temperatureSensor": SensorEntityDescription(
-        key="com.fibaro.temperatureSensor",
-        name="Temperature",
+        key="temperature",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     "com.fibaro.smokeSensor": SensorEntityDescription(
         key="com.fibaro.smokeSensor",
-        name="Smoke",
         native_unit_of_measurement=UnitOfRatio.PARTS_PER_MILLION,
         icon="mdi:fire",
     ),
     "CO2": SensorEntityDescription(
-        key="CO2",
-        name="CO2",
+        key="carbon_dioxide",
         native_unit_of_measurement=UnitOfRatio.PARTS_PER_MILLION,
         device_class=SensorDeviceClass.CO2,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     "com.fibaro.humiditySensor": SensorEntityDescription(
-        key="com.fibaro.humiditySensor",
-        name="Humidity",
+        key="humidity",
         native_unit_of_measurement=UnitOfRatio.PERCENTAGE,
         device_class=SensorDeviceClass.HUMIDITY,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     "com.fibaro.lightSensor": SensorEntityDescription(
-        key="com.fibaro.lightSensor",
-        name="Light",
+        key="illuminance",
         native_unit_of_measurement=LIGHT_LUX,
         device_class=SensorDeviceClass.ILLUMINANCE,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     "com.fibaro.energyMeter": SensorEntityDescription(
-        key="com.fibaro.energyMeter",
-        name="Energy",
+        key="energy",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -75,14 +69,12 @@ MAIN_SENSOR_TYPES: dict[str, SensorEntityDescription] = {
 ADDITIONAL_SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(
         key="energy",
-        name="Energy",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
     ),
     SensorEntityDescription(
         key="power",
-        name="Power",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
@@ -178,7 +170,6 @@ class FibaroAdditionalSensor(FibaroEntity, SensorEntity):
 
         # To differentiate additional sensors from main sensors they need
         # to get different names and ids
-        self._attr_name = f"{self._attr_name} {entity_description.name}"
         self._attr_unique_id = f"{self._attr_unique_id}_{entity_description.key}"
 
     @override

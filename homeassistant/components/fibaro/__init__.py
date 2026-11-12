@@ -22,7 +22,12 @@ from homeassistant.const import CONF_PASSWORD, CONF_URL, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers.device_registry import AnyDeviceEntry, DeviceInfo
+from homeassistant.helpers.device_registry import (
+    AnyDeviceEntry,
+    ChildDeviceInfo,
+    DeviceInfo,
+    DeviceRegistry,
+)
 
 from .const import CONF_IMPORT_PLUGINS, DOMAIN
 
@@ -93,6 +98,7 @@ class FibaroController:
         self.hub_serial = info.serial_number
         # Device infos by fibaro device id
         self._device_infos: dict[int, DeviceInfo] = {}
+        self._device_registry_ids: dict[tuple[int, int], str] = {}
         self._read_devices()
 
     def disconnect(self) -> None:
@@ -187,22 +193,69 @@ class FibaroController:
             name=main_device.name,
         )
 
-    def link_main_devices_to_hub(self, via_device_id: str) -> None:
+    def link_main_devices_to_hub(
+        self,
+        device_registry: DeviceRegistry,
+        config_entry_id: str,
+        via_device_id: str,
+    ) -> None:
         """Link all main devices to the hub via device."""
-        for device_info in self._device_infos.values():
-            device_info.via_device_id = via_device_id
+        child_device_keys = {
+            self._get_child_device_key(device)
+            for devices in self.fibaro_devices.values()
+            for device in devices
+            if device.fibaro_id not in self._device_infos
+            and device.parent_fibaro_id in self._device_infos
+        }
+        child_parent_ids = {parent_id for parent_id, _ in child_device_keys}
+        parent_device_ids: dict[int, str] = {}
 
-    def get_device_info(self, device: DeviceModel) -> DeviceInfo:
+        for fibaro_id, device_info in self._device_infos.items():
+            device_info.via_device_id = via_device_id
+            if fibaro_id in child_parent_ids:
+                parent_device_ids[fibaro_id] = (
+                    device_registry.async_get_or_create_from_info(
+                        config_entry_id=config_entry_id,
+                        device_info=device_info,
+                    ).id
+                )
+
+        for child_device_key in child_device_keys:
+            self._device_registry_ids[child_device_key] = parent_device_ids[
+                child_device_key[0]
+            ]
+
+    @staticmethod
+    def _get_child_device_key(device: DeviceModel) -> tuple[int, int]:
+        """Return the Fibaro parent and endpoint IDs identifying a child device."""
+        return (
+            device.parent_fibaro_id,
+            device.endpoint_id if device.has_endpoint_id else 0,
+        )
+
+    def get_device_info(self, device: DeviceModel) -> DeviceInfo | ChildDeviceInfo:
         """Get the device info by fibaro device id."""
         if device.fibaro_id in self._device_infos:
             return self._device_infos[device.fibaro_id]
+        child_device_key = self._get_child_device_key(device)
+        if parent_device_id := self._device_registry_ids.get(child_device_key):
+            return ChildDeviceInfo(
+                identifiers={(DOMAIN, f"{child_device_key[0]}_{child_device_key[1]}")},
+                name=device.name,
+                parent_device_id=parent_device_id,
+            )
         if device.parent_fibaro_id in self._device_infos:
             return self._device_infos[device.parent_fibaro_id]
         return DeviceInfo(identifiers={(DOMAIN, self.hub_serial)})
 
     def get_all_device_identifiers(self) -> list[set[tuple[str, str]]]:
         """Get all identifiers of fibaro integration."""
-        return [{(DOMAIN, str(fibaro_id))} for fibaro_id in self._device_infos]
+        identifiers = [{(DOMAIN, str(fibaro_id))} for fibaro_id in self._device_infos]
+        identifiers.extend(
+            {(DOMAIN, f"{parent_id}_{endpoint_id}")}
+            for parent_id, endpoint_id in self._device_registry_ids
+        )
+        return identifiers
 
     def get_room_name(self, room_id: int) -> str | None:
         """Get the room name by room id or "Unknown" if room does not exist."""
@@ -231,7 +284,8 @@ class FibaroController:
         """Read and process the device list."""
         devices = self._fibaro_device_manager.get_devices()
 
-        for main_device in find_master_devices(devices):
+        main_devices = find_master_devices(devices)
+        for main_device in main_devices:
             self._create_device_info(main_device)
 
         self._device_map = {}
@@ -328,7 +382,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: FibaroConfigEntry) -> No
         configuration_url=controller.get_frontend_url(),
         connections={(dr.CONNECTION_NETWORK_MAC, fibaro_info.mac_address)},
     )
-    controller.link_main_devices_to_hub(hub_device.id)
+    controller.link_main_devices_to_hub(device_registry, entry.entry_id, hub_device.id)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
