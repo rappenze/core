@@ -36,6 +36,8 @@ async def async_setup_entry(
 class FibaroEventEntity(FibaroEntity, EventEntity):
     """Representation of a Fibaro Event Entity."""
 
+    _attr_translation_key = "button"
+
     def __init__(
         self,
         fibaro_device: DeviceModel,
@@ -49,7 +51,7 @@ class FibaroEventEntity(FibaroEntity, EventEntity):
 
         self._button = key_id
 
-        self._attr_name = f"{self._attr_name} Button {key_id}"
+        self._attr_translation_placeholders = {"key": str(key_id)}
         self._attr_device_class = EventDeviceClass.BUTTON
         self._attr_event_types = scene_event.key_event_types
         self._attr_unique_id = f"{self._attr_unique_id}.{key_id}"

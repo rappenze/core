@@ -159,16 +159,12 @@ async def test_child_device_info(
     main_device_endpoint = device_registry.async_get_child_device_by_identifier(
         (DOMAIN, "5_endpoint_3"), mock_config_entry.entry_id
     )
-    light_entity = entity_registry.async_get(
-        "light.test_climate_test_light_room_1_test_light"
-    )
-    second_light_entity = entity_registry.async_get(
-        "light.test_climate_test_light_room_1_test_light_2"
-    )
+    light_entity = entity_registry.async_get("light.test_climate_test_light")
+    second_light_entity = entity_registry.async_get("light.test_climate_test_light_2")
     additional_sensor_entity = entity_registry.async_get(
-        "sensor.test_climate_test_light_room_1_test_sensor_power"
+        "sensor.test_climate_test_light_power"
     )
-    sensor_entity = entity_registry.async_get("sensor.test_climate_room_1_test_sensor")
+    sensor_entity = entity_registry.async_get("sensor.test_climate")
 
     assert main_device is not None
     assert endpoint_device is not None
@@ -216,7 +212,7 @@ async def test_single_endpoint_uses_main_device_info(
     child_device = device_registry.async_get_child_device_by_identifier(
         (DOMAIN, "5_endpoint_1"), mock_config_entry.entry_id
     )
-    child_entity = entity_registry.async_get("climate.test_climate_room_1_test_climate")
+    child_entity = entity_registry.async_get("climate.test_climate")
 
     assert main_device is not None
     assert child_device is None

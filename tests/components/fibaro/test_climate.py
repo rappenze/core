@@ -31,10 +31,9 @@ async def test_climate_setup(
         # Act
         await init_integration(hass, mock_config_entry)
         # Assert
-        entry = entity_registry.async_get("climate.test_climate_room_1_test_climate")
+        entry = entity_registry.async_get("climate.test_climate")
         assert entry
         assert entry.unique_id == "hc2_111111.13"
-        assert entry.original_name == "Room 1 Test climate"
         assert entry.supported_features == (
             ClimateEntityFeature.TURN_ON
             | ClimateEntityFeature.TURN_OFF
@@ -64,11 +63,9 @@ async def test_climate_setup_2_quickapps(
         # Act
         await init_integration(hass, mock_config_entry)
         # Assert
-        entry1 = entity_registry.async_get("climate.test_climate_room_1_test_climate")
+        entry1 = entity_registry.async_get("climate.test_climate")
         assert entry1
-        entry2 = entity_registry.async_get(
-            "climate.test_climate_2_room_1_test_climate_2"
-        )
+        entry2 = entity_registry.async_get("climate.test_climate_2")
         assert entry2
 
 
@@ -89,7 +86,7 @@ async def test_hvac_mode_preset(
         # Act
         await init_integration(hass, mock_config_entry)
         # Assert
-        state = hass.states.get("climate.test_climate_room_1_test_climate")
+        state = hass.states.get("climate.test_climate")
         assert state.state == HVACMode.AUTO
         assert state.attributes["preset_mode"] == "CustomerSpecific"
 
@@ -112,7 +109,7 @@ async def test_hvac_mode_heat(
         # Act
         await init_integration(hass, mock_config_entry)
         # Assert
-        state = hass.states.get("climate.test_climate_room_1_test_climate")
+        state = hass.states.get("climate.test_climate")
         assert state.state == HVACMode.HEAT
         assert state.attributes["preset_mode"] is None
 
@@ -137,7 +134,7 @@ async def test_set_hvac_mode(
             "climate",
             "set_hvac_mode",
             {
-                "entity_id": "climate.test_climate_room_1_test_climate",
+                "entity_id": "climate.test_climate",
                 "hvac_mode": HVACMode.HEAT,
             },
             blocking=True,
@@ -164,7 +161,7 @@ async def test_hvac_mode_with_operation_mode_support(
         # Act
         await init_integration(hass, mock_config_entry)
         # Assert
-        state = hass.states.get("climate.my_fibaro_home_center_room_1_test_climate")
+        state = hass.states.get("climate.my_fibaro_home_center")
         assert state.state == HVACMode.AUTO
 
 
@@ -188,7 +185,7 @@ async def test_set_hvac_mode_with_operation_mode_support(
             "climate",
             "set_hvac_mode",
             {
-                "entity_id": "climate.my_fibaro_home_center_room_1_test_climate",
+                "entity_id": "climate.my_fibaro_home_center",
                 "hvac_mode": HVACMode.HEAT,
             },
             blocking=True,
@@ -221,7 +218,7 @@ async def test_fan_mode(
         # Act
         await init_integration(hass, mock_config_entry)
         # Assert
-        state = hass.states.get("climate.test_climate_room_1_test_climate")
+        state = hass.states.get("climate.test_climate")
         assert state.attributes["fan_mode"] == "low"
         assert state.attributes["fan_modes"] == ["off", "low", "auto_high"]
 
@@ -252,7 +249,7 @@ async def test_set_fan_mode(
             "climate",
             "set_fan_mode",
             {
-                "entity_id": "climate.test_climate_room_1_test_climate",
+                "entity_id": "climate.test_climate",
                 "fan_mode": "off",
             },
             blocking=True,
@@ -285,7 +282,7 @@ async def test_target_temperature(
         # Act
         await init_integration(hass, mock_config_entry)
         # Assert
-        state = hass.states.get("climate.test_climate_room_1_test_climate")
+        state = hass.states.get("climate.test_climate")
         assert state.attributes["temperature"] == 23
 
 
@@ -315,7 +312,7 @@ async def test_set_target_temperature(
             "climate",
             "set_temperature",
             {
-                "entity_id": "climate.test_climate_room_1_test_climate",
+                "entity_id": "climate.test_climate",
                 "temperature": 25.5,
             },
             blocking=True,
@@ -325,7 +322,7 @@ async def test_set_target_temperature(
         mock_thermostat_with_operating_mode.execute_action.assert_called_once()
 
 
-HVAC_SYSTEM_ENTITY_ID = "climate.test_climate_room_1_test_climate"
+HVAC_SYSTEM_ENTITY_ID = "climate.test_climate"
 
 
 @pytest.mark.parametrize(
