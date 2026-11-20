@@ -30,10 +30,9 @@ async def test_switch_setup(
         # Act
         await init_integration(hass, mock_config_entry)
         # Assert
-        entry = entity_registry.async_get("switch.test_switch_room_1_test_switch")
+        entry = entity_registry.async_get("switch.test_switch")
         assert entry
         assert entry.unique_id == "hc2_111111.9"
-        assert entry.original_name == "Room 1 Test switch"
 
 
 async def test_switch_turn_on(
@@ -54,7 +53,7 @@ async def test_switch_turn_on(
         await hass.services.async_call(
             SWITCH_DOMAIN,
             SwitchService.TURN_ON,
-            {TargetKey.ENTITY_ID: "switch.test_switch_room_1_test_switch"},
+            {TargetKey.ENTITY_ID: "switch.test_switch"},
             blocking=True,
         )
         # Assert
@@ -79,7 +78,7 @@ async def test_switch_turn_off(
         await hass.services.async_call(
             SWITCH_DOMAIN,
             SwitchService.TURN_OFF,
-            {TargetKey.ENTITY_ID: "switch.test_switch_room_1_test_switch"},
+            {TargetKey.ENTITY_ID: "switch.test_switch"},
             blocking=True,
         )
         # Assert

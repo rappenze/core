@@ -19,6 +19,7 @@ class FibaroEntity(Entity):
     """Representation of a Fibaro device entity."""
 
     _attr_should_poll = False
+    _attr_has_entity_name = True
 
     def __init__(
         self, fibaro_device: DeviceModel, controller: FibaroController
@@ -27,9 +28,6 @@ class FibaroEntity(Entity):
         self.fibaro_device = fibaro_device
         self.controller = controller
 
-        room_name = controller.get_room_name(fibaro_device.room_id)
-
-        self._attr_name = f"{room_name} {fibaro_device.name}"
         self._attr_unique_id = (
             f"{slugify(controller.hub_serial)}.{fibaro_device.fibaro_id}"
         )

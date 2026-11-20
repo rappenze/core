@@ -31,7 +31,7 @@ async def test_positionable_cover_setup(
         # Act
         await init_integration(hass, mock_config_entry)
         # Assert
-        entry = entity_registry.async_get("cover.test_cover_room_1_test_cover")
+        entry = entity_registry.async_get("cover.test_cover")
         assert entry
         assert entry.supported_features == (
             CoverEntityFeature.OPEN
@@ -40,7 +40,6 @@ async def test_positionable_cover_setup(
             | CoverEntityFeature.SET_POSITION
         )
         assert entry.unique_id == "hc2_111111.2"
-        assert entry.original_name == "Room 1 Test cover"
 
 
 POSITION_FEATURES = (
@@ -98,7 +97,7 @@ async def test_positionable_cover_tilt_support(
         # Act
         await init_integration(hass, mock_config_entry)
         # Assert
-        entry = entity_registry.async_get("cover.test_cover_room_1_test_cover")
+        entry = entity_registry.async_get("cover.test_cover")
         assert entry
         assert entry.supported_features == expected_features
 
@@ -120,10 +119,7 @@ async def test_cover_opening(
         # Act
         await init_integration(hass, mock_config_entry)
         # Assert
-        assert (
-            hass.states.get("cover.test_cover_room_1_test_cover").state
-            == CoverState.OPENING
-        )
+        assert hass.states.get("cover.test_cover").state == CoverState.OPENING
 
 
 async def test_cover_opening_closing_none(
@@ -144,10 +140,7 @@ async def test_cover_opening_closing_none(
         # Act
         await init_integration(hass, mock_config_entry)
         # Assert
-        assert (
-            hass.states.get("cover.test_cover_room_1_test_cover").state
-            == CoverState.OPEN
-        )
+        assert hass.states.get("cover.test_cover").state == CoverState.OPEN
 
 
 async def test_cover_closing(
@@ -168,10 +161,7 @@ async def test_cover_closing(
         # Act
         await init_integration(hass, mock_config_entry)
         # Assert
-        assert (
-            hass.states.get("cover.test_cover_room_1_test_cover").state
-            == CoverState.CLOSING
-        )
+        assert hass.states.get("cover.test_cover").state == CoverState.CLOSING
 
 
 async def test_cover_setup(
@@ -192,7 +182,7 @@ async def test_cover_setup(
         # Act
         await init_integration(hass, mock_config_entry)
         # Assert
-        entry = entity_registry.async_get("cover.test_cover_room_1_test_cover")
+        entry = entity_registry.async_get("cover.test_cover")
         assert entry
         assert entry.supported_features == (
             CoverEntityFeature.OPEN
@@ -203,7 +193,6 @@ async def test_cover_setup(
             | CoverEntityFeature.STOP_TILT
         )
         assert entry.unique_id == "hc2_111111.4"
-        assert entry.original_name == "Room 1 Test cover"
 
 
 async def test_cover_open_action(
@@ -225,7 +214,7 @@ async def test_cover_open_action(
         await hass.services.async_call(
             "cover",
             "open_cover",
-            {"entity_id": "cover.test_cover_room_1_test_cover"},
+            {"entity_id": "cover.test_cover"},
             blocking=True,
         )
 
@@ -252,7 +241,7 @@ async def test_cover_close_action(
         await hass.services.async_call(
             "cover",
             "close_cover",
-            {"entity_id": "cover.test_cover_room_1_test_cover"},
+            {"entity_id": "cover.test_cover"},
             blocking=True,
         )
 
@@ -279,7 +268,7 @@ async def test_cover_stop_action(
         await hass.services.async_call(
             "cover",
             "stop_cover",
-            {"entity_id": "cover.test_cover_room_1_test_cover"},
+            {"entity_id": "cover.test_cover"},
             blocking=True,
         )
 
@@ -306,7 +295,7 @@ async def test_cover_open_slats_action(
         await hass.services.async_call(
             "cover",
             "open_cover_tilt",
-            {"entity_id": "cover.test_cover_room_1_test_cover"},
+            {"entity_id": "cover.test_cover"},
             blocking=True,
         )
 
@@ -333,7 +322,7 @@ async def test_cover_close_tilt_action(
         await hass.services.async_call(
             "cover",
             "close_cover_tilt",
-            {"entity_id": "cover.test_cover_room_1_test_cover"},
+            {"entity_id": "cover.test_cover"},
             blocking=True,
         )
 
@@ -360,7 +349,7 @@ async def test_cover_stop_slats_action(
         await hass.services.async_call(
             "cover",
             "stop_cover_tilt",
-            {"entity_id": "cover.test_cover_room_1_test_cover"},
+            {"entity_id": "cover.test_cover"},
             blocking=True,
         )
 
